@@ -24,11 +24,12 @@
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
-    id("com.vanniktech.maven.publish.base")
+    //id("com.vanniktech.maven.publish.base")
 }
 
 android {
     namespace = "io.github.rosemoe.sora.lsp"
+    compileSdk = 35
 
     defaultConfig {
         consumerProguardFiles("consumer-rules.pro")
@@ -42,8 +43,20 @@ android {
     }
 }
 
+
+
+  java {
+      targetCompatibility = JavaVersion.VERSION_17
+      sourceCompatibility = JavaVersion.VERSION_17
+  }
+
+  kotlin {
+      jvmToolchain(17)
+  }
+
+
 dependencies {
-    compileOnly(projects.editor)
+    compileOnly(project(":editor"))
     implementation(libs.lsp4j)
     implementation(libs.kotlinx.coroutines)
 }

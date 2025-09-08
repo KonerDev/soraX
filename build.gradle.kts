@@ -29,9 +29,9 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 
 plugins {
     id("build-logic.root-project")
-    alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.android.library) apply false
-    alias(libs.plugins.kotlin) apply false
+    id("com.android.application") version "8.11.1" apply false
+    id("com.android.library") version "8.11.1" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.10" apply false
     alias(libs.plugins.publish) apply false
 }
 
