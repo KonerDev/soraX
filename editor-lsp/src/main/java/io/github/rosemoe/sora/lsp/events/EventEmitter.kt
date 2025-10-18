@@ -31,6 +31,8 @@ class EventEmitter {
 
     private val listeners = HashMap<String, MutableList<EventListener>>()
 
+    var throwableListener: ((Throwable) -> Unit) = { t -> throw t }
+
     fun addListener(listener: EventListener) {
         listeners.getOrPut(listener.eventName) { ArrayList() }.add(listener)
     }
@@ -41,7 +43,7 @@ class EventEmitter {
 
     fun <T : EventListener> getEventListener(clazz: Class<T>): T? {
         return listeners.flatMap { it.value }
-            .find { it::class.java == clazz } as T
+            .find { it::class.java == clazz } as? T?
     }
 
     fun <T : EventListener> removeListener(listenerClass: Class<T>) {
@@ -56,15 +58,23 @@ class EventEmitter {
     }
 
     fun emit(event: String, context: EventContext): EventContext {
-        listeners[event]?.forEach {
-            it.handle(context)
+        try {
+            listeners[event]?.forEach {
+                it.handle(context)
+            }
+        } catch (t: Throwable) {
+            throwableListener.invoke(t)
         }
         return context
     }
 
     suspend fun emitAsync(event: String, context: EventContext): EventContext {
-        listeners[event]?.forEach {
-            it.handleAsync(context)
+        try {
+            listeners[event]?.forEach {
+                it.handleAsync(context)
+            }
+        } catch (t: Throwable) {
+            throwableListener.invoke(t)
         }
         return context
     }
