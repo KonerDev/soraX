@@ -32,7 +32,7 @@ plugins {
 
 android {
     namespace = "io.github.rosemoe.sora.langs.textmate"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -71,10 +71,9 @@ dependencies {
 }
 
 java {
-    targetCompatibility = JavaVersion.VERSION_17
-    sourceCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
-
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
