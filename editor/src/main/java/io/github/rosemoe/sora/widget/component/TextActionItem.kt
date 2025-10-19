@@ -14,5 +14,5 @@ class TextActionItem(
     val shouldShow: (editor: CodeEditor) -> Boolean = { true },
     val onClick: (editor: CodeEditor) -> Unit
 ) {
-    internal var actionButton: ImageButton? = null
+    var actionButton: ImageButton? = null
 }

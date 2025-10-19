@@ -142,7 +142,7 @@ public class EditorTextActionWindow extends EditorPopupWindow implements View.On
 
         // Registered action buttons
         for (TextActionItem actionItem : registeredActionItems) {
-            ImageButton imageButton = actionItem.getActionButton$editor_debug();
+            ImageButton imageButton = actionItem.getActionButton();
             if (imageButton != null) applyColorFilter(imageButton, color);
         }
     }
@@ -335,7 +335,7 @@ public class EditorTextActionWindow extends EditorPopupWindow implements View.On
         longSelectBtn.setVisibility((!editor.getCursor().isSelected() && editor.isEditable()) ? View.VISIBLE : View.GONE);
 
         for (TextActionItem actionItem : registeredActionItems) {
-            ImageButton imageButton = actionItem.getActionButton$editor_debug();
+            ImageButton imageButton = actionItem.getActionButton();
             if (imageButton != null) {
                 imageButton.setVisibility(actionItem.getShouldShow().invoke(editor) ? View.VISIBLE : View.GONE);
             }
@@ -404,7 +404,7 @@ public class EditorTextActionWindow extends EditorPopupWindow implements View.On
 
         panelButtonContainer.addView(btn);
 
-        item.setActionButton$editor_debug(btn);
+        item.setActionButton(btn);
         registeredActionItems.add(item);
 
         btn.setOnClickListener(v -> {
@@ -427,7 +427,7 @@ public class EditorTextActionWindow extends EditorPopupWindow implements View.On
      */
     public void unregisterTextAction(@NonNull TextActionItem item) {
         registeredActionItems.remove(item);
-        item.setActionButton$editor_debug(null);
+        item.setActionButton(null);
         updateBtnState();
     }
 }
