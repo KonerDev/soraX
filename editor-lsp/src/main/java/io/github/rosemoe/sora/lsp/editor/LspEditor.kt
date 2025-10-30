@@ -121,7 +121,7 @@ class LspEditor(
 
             unsubscribeFunction =
                 Runnable {
-                    subscriptionReceipts.toList().forEach {
+                    subscriptionReceipts.forEach {
                         it.unsubscribe()
                     }
 
