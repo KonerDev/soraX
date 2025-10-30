@@ -33,8 +33,11 @@ class EventEmitter {
 
     var throwableListener: ((Throwable) -> Unit) = { t -> throw t }
 
-    fun addListener(listener: EventListener) {
+    fun addListener(listener: EventListener): EventDisposable {
         listeners.getOrPut(listener.eventName) { ArrayList() }.add(listener)
+        return {
+            removeListener(listener)
+        }
     }
 
     fun removeListener(listener: EventListener) {
@@ -57,23 +60,29 @@ class EventEmitter {
         }
     }
 
-    fun emit(event: String, context: EventContext): EventContext {
+    fun emit(event: String, context: EventContext, throwError: Boolean = false): EventContext {
         try {
             listeners[event]?.forEach {
                 it.handle(context)
             }
         } catch (t: Throwable) {
+            if (throwError) {
+                throw t
+            }
             throwableListener.invoke(t)
         }
         return context
     }
 
-    suspend fun emitAsync(event: String, context: EventContext): EventContext {
+    suspend fun emitAsync(event: String, context: EventContext, throwError: Boolean = false): EventContext {
         try {
             listeners[event]?.forEach {
                 it.handleAsync(context)
             }
         } catch (t: Throwable) {
+            if (throwError) {
+                throw t
+            }
             throwableListener.invoke(t)
         }
         return context
@@ -174,11 +183,12 @@ class EventContext {
         return data[key] as? T?
     }
 
-    fun put(key: String, value: Any) {
-        data[key] = value
+    fun put(key: String, value: Any?) {
+        data[key] = value ?: return
     }
 
-    fun put(value: Any) {
+    fun put(value: Any?) {
+        value ?: return
         data[value::class.java.name] = value
     }
 
@@ -217,3 +227,5 @@ inline fun <reified T : EventListener> EventEmitter.getEventListener(): T? {
 }
 
 object EventType
+
+typealias EventDisposable = () -> Unit
