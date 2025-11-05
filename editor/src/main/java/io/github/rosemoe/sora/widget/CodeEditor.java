@@ -232,6 +232,12 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      * @see #setNonPrintablePaintingFlags(int)
      */
     public static final int FLAG_DRAW_WHITESPACE_IN_SELECTION = 1 << 6;
+    /**
+     * Draw soft-wrap indicator in text
+     *
+     * @see #setNonPrintablePaintingFlags(int)
+     */
+    public static final int FLAG_DRAW_SOFT_WRAP = 1 << 7;
     /*
      * Internal state identifiers of action mode
      */
@@ -2058,9 +2064,14 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      * @see #FLAG_DRAW_WHITESPACE_FOR_EMPTY_LINE
      * @see #FLAG_DRAW_LINE_SEPARATOR
      * @see #FLAG_DRAW_WHITESPACE_IN_SELECTION
+     * @see #FLAG_DRAW_SOFT_WRAP
      */
     public void setNonPrintablePaintingFlags(int flags) {
+        int oldFlags = nonPrintableOptions;
         this.nonPrintableOptions = flags;
+        if ((oldFlags & FLAG_DRAW_SOFT_WRAP) != (flags & FLAG_DRAW_SOFT_WRAP)) {
+            createLayout();
+        }
         invalidate();
     }
 
