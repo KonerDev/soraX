@@ -3147,9 +3147,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
             return;
         }
         this.layoutBusy = busy;
-        if (layoutBusy != busy) {
-            dispatchEvent(new LayoutStateChangeEvent(this, busy));
-        }
+        dispatchEvent(new LayoutStateChangeEvent(this, busy));
     }
 
     /**
