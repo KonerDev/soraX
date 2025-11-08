@@ -22,31 +22,34 @@
  *     additional information or have any questions
  ******************************************************************************/
 
-package io.github.rosemoe.sora.lang.styling.inlayHint
+package io.github.rosemoe.sora.lsp.editor.event
 
-import io.github.rosemoe.sora.lang.styling.util.PointAnchoredObject
+import io.github.rosemoe.sora.event.EventReceiver
+import io.github.rosemoe.sora.event.ScrollEvent
+import io.github.rosemoe.sora.event.Unsubscribe
+import io.github.rosemoe.sora.lsp.editor.LspEditor
+import io.github.rosemoe.sora.lsp.editor.requestInlayHint
+import io.github.rosemoe.sora.text.CharPosition
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.launch
 
-/**
- * Choose which side of character to display the inlay hint.
- *
- * No effect if the given character position is at line start or end.
- */
-enum class CharacterSide {
-    LEFT,
-    RIGHT
-}
+@OptIn(FlowPreview::class)
+class LspEditorScrollEvent(private val editor: LspEditor) :
+    EventReceiver<ScrollEvent> {
 
-open class InlayHint(
-    override var line: Int,
-    override var column: Int,
-    val type: String,
-    val displaySide: CharacterSide = CharacterSide.LEFT
-) : PointAnchoredObject {
-
-    init {
-        if (line < 0 || column < 0) {
-            throw IllegalArgumentException("negative number")
+    override fun onReceive(event: ScrollEvent, unsubscribe: Unsubscribe) {
+        if (!editor.isConnected || editor.isEnableInlayHint) {
+            return
         }
-    }
 
+        val firstVisibleLine = event.editor.firstVisibleLine
+
+        editor.coroutineScope.launch {
+            // request inlay hint
+            editor.requestInlayHint(
+                CharPosition(firstVisibleLine, 0)
+            )
+        }
+
+    }
 }

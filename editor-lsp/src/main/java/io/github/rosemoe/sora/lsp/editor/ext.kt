@@ -22,31 +22,47 @@
  *     additional information or have any questions
  ******************************************************************************/
 
-package io.github.rosemoe.sora.lang.styling.inlayHint
+package io.github.rosemoe.sora.lsp.editor
 
-import io.github.rosemoe.sora.lang.styling.util.PointAnchoredObject
+import io.github.rosemoe.sora.lsp.events.EventType
+import io.github.rosemoe.sora.lsp.events.inlayhint.inlayHint
+import io.github.rosemoe.sora.text.CharPosition
+import org.eclipse.lsp4j.InlayHint
+import kotlin.math.pow
 
-/**
- * Choose which side of character to display the inlay hint.
- *
- * No effect if the given character position is at line start or end.
- */
-enum class CharacterSide {
-    LEFT,
-    RIGHT
+internal suspend fun LspEditor.requestInlayHint(position: CharPosition) {
+    if (!isEnableInlayHint) return
+
+    eventManager.emitAsync(EventType.inlayHint) {
+        put(position)
+    }
 }
 
-open class InlayHint(
-    override var line: Int,
-    override var column: Int,
-    val type: String,
-    val displaySide: CharacterSide = CharacterSide.LEFT
-) : PointAnchoredObject {
-
-    init {
-        if (line < 0 || column < 0) {
-            throw IllegalArgumentException("negative number")
-        }
+internal fun curvedTextScale(rawScale: Float): Float {
+    if (!rawScale.isFinite() || rawScale <= 0f) {
+        return 1f
     }
+    if (rawScale == 1f) {
+        return 1f
+    }
+    return if (rawScale > 1f) {
+        val diff = rawScale - 1f
+        val curved = diff.toDouble().pow(0.75).toFloat()
+        1f + diff + curved * 0.2f
+    } else {
+        val diff = 1f - rawScale
+        val curved = diff.toDouble().pow(1.5).toFloat()
+        (1f - curved).coerceAtLeast(0f)
+    }
+}
 
+fun List<InlayHint>.toEditorDisplay() = map {
+    val text = if (it.label.isLeft) it.label.left else {
+        it.label.right[0].value
+    }
+    io.github.rosemoe.sora.lang.styling.inlayHint.TextInlayHint(
+        it.position.line,
+        it.position.character,
+        text
+    )
 }

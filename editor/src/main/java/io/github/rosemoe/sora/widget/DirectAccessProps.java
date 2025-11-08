@@ -33,6 +33,7 @@ import androidx.annotation.NonNull;
 
 import java.io.Serializable;
 
+import io.github.rosemoe.sora.annotations.Experimental;
 import io.github.rosemoe.sora.annotations.InvalidateRequired;
 
 /**
@@ -149,7 +150,7 @@ public class DirectAccessProps implements Serializable {
      * Set it to 0 to send no text to IME.
      */
     @IntRange(from = 0)
-    public int maxIPCTextLength = 500000;
+    public int maxIPCTextLength = 32768;
 
     /**
      * Whether over scroll is permitted.
@@ -299,12 +300,21 @@ public class DirectAccessProps implements Serializable {
     public float sideIconSizeFactor = 0.7f;
 
     /**
-     * Specify the marker text size factor, such as hardwrap markers.
+     * Specify the marker text size factor, such as line-break markers.
      * not available for setting now
      */
     @InvalidateRequired
     @FloatRange(from = 0.0f, to = 1.0f)
     public final float miniMarkerSizeFactor = 0.45f;
+
+
+    /**
+     * Specify the text size factor for function characters
+     * not available for setting now
+     */
+    @InvalidateRequired
+    @FloatRange(from = 0.0f, to = 1.0f)
+    public final float functionCharacterSizeFactor = 0.85f;
 
     /**
      * Specify editor behavior when line number is clicked.
@@ -496,5 +506,14 @@ public class DirectAccessProps implements Serializable {
      * instead of physical lines.
      */
     public boolean rowBasedHomeEnd = true;
+
+    /**
+     * Check thread when the text in editor is changed. Note that the text should be modified from
+     * UI thread only, because the editor need to update itself in UI thread.
+     * <p>
+     * You may set it to {@code true} for debugging purpose to detect possible violations
+     */
+    @Experimental
+    public boolean checkModificationThread = false;
 
 }
