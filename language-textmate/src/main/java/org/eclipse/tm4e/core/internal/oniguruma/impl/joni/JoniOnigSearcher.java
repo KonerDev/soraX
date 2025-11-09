@@ -14,36 +14,37 @@
  * - GitHub Inc.: Initial code, written in JavaScript, licensed under MIT license
  * - Angelo Zerr <angelo.zerr@gmail.com> - translation and adaptation to Java
  */
-package org.eclipse.tm4e.core.internal.oniguruma;
+package org.eclipse.tm4e.core.internal.oniguruma.impl.joni;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tm4e.core.TMException;
+import org.eclipse.tm4e.core.internal.oniguruma.OnigString;
 import org.joni.exception.JOniException;
 
 /**
  * @see <a href="https://github.com/atom/node-oniguruma/blob/master/src/onig-searcher.cc">
  *      github.com/atom/node-oniguruma/blob/master/src/onig-searcher.cc</a>
  */
-final class OnigSearcher {
+final class JoniOnigSearcher {
 
-	private final List<OnigRegExp> regExps;
+	private final List<JoniOnigRegExp> regExps;
 
-	OnigSearcher(final List<String> regExps) {
-		this.regExps = regExps.stream().map(OnigSearcher::createRegExp).collect(Collectors.toList());
+	public JoniOnigSearcher(final List<String> regExps) {
+		this.regExps = regExps.stream().map(JoniOnigSearcher::createRegExp).collect(Collectors.toList());
 	}
 
-	private static OnigRegExp createRegExp(String exp) {
+	private static JoniOnigRegExp createRegExp(String exp) {
 		// workaround for regular expressions that are unsupported by joni
 		// from https://github.com/JetBrains/intellij-community/blob/881c9bc397b850bad1d393a67bcbc82861d55d79/plugins/textmate/core/src/org/jetbrains/plugins/textmate/regex/joni/JoniRegexFactory.kt#L32
 		try {
-			return new OnigRegExp(exp);
+			return new JoniOnigRegExp(exp);
 		} catch (TMException e) {
 			if (e.getCause() instanceof JOniException) {
 				e.printStackTrace();
-				return new OnigRegExp("^$");
+				return new JoniOnigRegExp("^$");
 			} else {
 				throw e;
 			}
@@ -51,15 +52,15 @@ final class OnigSearcher {
 	}
 
 	@Nullable
-	OnigResult search(final OnigString source, final int charOffset) {
+	public JoniOnigResult search(final OnigString source, final int charOffset) {
 		final int byteOffset = source.getByteIndexOfChar(charOffset);
 
 		int bestLocation = 0;
-		OnigResult bestResult = null;
+		JoniOnigResult bestResult = null;
 		int index = 0;
 
-		for (final OnigRegExp regExp : regExps) {
-			final OnigResult result = regExp.search(source, byteOffset);
+		for (final var regExp : regExps) {
+			final var result = regExp.search(source, byteOffset);
 			if (result != null && result.count() > 0) {
 				final int location = result.locationAt(0);
 

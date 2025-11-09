@@ -20,6 +20,8 @@ package org.eclipse.tm4e.core.internal.oniguruma;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.jcodings.specific.UTF8Encoding;
@@ -52,7 +54,7 @@ public abstract class OnigString {
 		}
 
 		@Override
-		int getByteIndexOfChar(final int charIndex) {
+		public int getByteIndexOfChar(final int charIndex) {
 			if (charIndex == lastCharIndex + 1) {
 				// One off can happen when finding the end of a regexp (it's the right boundary).
 				return bytesCount;
@@ -94,7 +96,7 @@ public abstract class OnigString {
 		}
 
 		@Override
-		int getCharIndexOfByte(final int byteIndex) {
+		public int getCharIndexOfByte(final int byteIndex) {
 			if (byteIndex == bytesCount) {
 				// One off can happen when finding the end of a regexp (it's the right boundary).
 				return lastCharIndex + 1;
@@ -121,7 +123,7 @@ public abstract class OnigString {
 		}
 
 		@Override
-		int getByteIndexOfChar(final int charIndex) {
+		public int getByteIndexOfChar(final int charIndex) {
 			if (charIndex == bytesCount) {
 				// One off can happen when finding the end of a regexp (it's the right boundary).
 				return charIndex;
@@ -134,7 +136,7 @@ public abstract class OnigString {
 		}
 
 		@Override
-		int getCharIndexOfByte(final int byteIndex) {
+		public int getCharIndexOfByte(final int byteIndex) {
 			if (byteIndex == bytesCount) {
 				// One off can happen when finding the end of a regexp (it's the right boundary).
 				return byteIndex;
@@ -156,9 +158,11 @@ public abstract class OnigString {
 	}
 
 	public final String content;
+    private final static AtomicLong cacheKeyAlloc = new AtomicLong();
 
 	public final int bytesCount;
 	final byte[] bytesUTF8;
+    private final long cacheKey = cacheKeyAlloc.incrementAndGet();
 
 	private OnigString(final String content, final byte[] bytesUTF8) {
 		this.content = content;
@@ -171,9 +175,17 @@ public abstract class OnigString {
 				indexName + " index " + index + " is out of range " + minIndex + ".." + maxIndex + " of " + this);
 	}
 
-	abstract int getByteIndexOfChar(int charIndex);
+    public long getCacheKey() {
+        return cacheKey;
+    }
 
-	abstract int getCharIndexOfByte(int byteIndex);
+    public byte[] getUtf8Bytes() {
+		return bytesUTF8;
+	}
+
+	public abstract int getByteIndexOfChar(int charIndex);
+
+	public abstract int getCharIndexOfByte(int byteIndex);
 
 	@Override
 	public String toString() {
