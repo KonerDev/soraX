@@ -305,7 +305,7 @@ public class DirectAccessProps implements Serializable {
      */
     @InvalidateRequired
     @FloatRange(from = 0.0f, to = 1.0f)
-    public final float miniMarkerSizeFactor = 0.45f;
+    public final float miniMarkerSizeFactor = 0.5f;
 
 
     /**
@@ -515,5 +515,41 @@ public class DirectAccessProps implements Serializable {
      */
     @Experimental
     public boolean checkModificationThread = false;
+
+    /**
+     * Show direction indicator on selection for bidirectional text.
+     */
+    @InvalidateRequired
+    public boolean showBidiDirectionIndicator = true;
+
+    /**
+     * Show divider line
+     *
+     * @see #stickyLineIndicator
+     */
+    public final static int STICKY_LINE_INDICATOR_LINE = 1;
+
+    /**
+     * Show shadow
+     *
+     * @see #stickyLineIndicator
+     */
+    public final static int STICKY_LINE_INDICATOR_SHADOW = 1;
+
+
+    /**
+     * How to show the sticky line divider
+     *
+     * @see #STICKY_LINE_INDICATOR_LINE
+     * @see #STICKY_LINE_INDICATOR_SHADOW
+     */
+    @InvalidateRequired
+    public int stickyLineIndicator = STICKY_LINE_INDICATOR_LINE | STICKY_LINE_INDICATOR_SHADOW;
+
+    /**
+     * The completion window will automatically move selection to first item if physical
+     * keyboard is connected when it is going to show up.
+     */
+    public boolean moveSelectionToFirstForKeyboard = true;
 
 }

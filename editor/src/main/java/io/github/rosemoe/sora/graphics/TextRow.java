@@ -36,6 +36,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import io.github.rosemoe.sora.lang.styling.Span;
+import io.github.rosemoe.sora.lang.styling.SpanFactory;
 import io.github.rosemoe.sora.lang.styling.TextStyle;
 import io.github.rosemoe.sora.lang.styling.inlayHint.CharacterSide;
 import io.github.rosemoe.sora.lang.styling.inlayHint.InlayHint;
@@ -82,7 +83,7 @@ public class TextRow {
         return Integer.compare(a.getColumn(), b.getColumn());
     };
     private final RectF tmpRect = new RectF();
-    private final Span tmpSpan = Span.obtain(0, 0);
+    private final Span tmpSpan = SpanFactory.obtainNoExt(0, 0);
     private ContentLine text;
     private Directions directions;
     private int textStart;
@@ -711,8 +712,8 @@ public class TextRow {
         var underlineColor = span.getUnderlineColor();
         int underlineColorInt;
         if (underlineColor != null && (underlineColorInt = underlineColor.resolve(params.getColorScheme())) != 0) {
-            tmpRect.bottom = params.getRowBottom();
-            tmpRect.top = tmpRect.bottom - params.getRowHeight() * RenderingConstants.TEXT_UNDERLINE_WIDTH_FACTOR;
+            tmpRect.bottom = params.getTextBottom();
+            tmpRect.top = tmpRect.bottom - params.getTextHeight() * RenderingConstants.TEXT_UNDERLINE_WIDTH_FACTOR;
             tmpRect.left = offset;
             tmpRect.right = offset + width;
             paintGeneral.setColor(underlineColorInt);
@@ -1184,6 +1185,7 @@ public class TextRow {
                 return;
             }
             commitCurrentIfPresent();
+            isEmpty = false;
             currentLeft = regionLeft;
             currentRight = regionRight;
         }
