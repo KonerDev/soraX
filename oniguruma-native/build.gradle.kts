@@ -24,12 +24,12 @@
 
 plugins {
     id("com.android.library")
-    id("com.vanniktech.maven.publish.base")
+    //id("com.vanniktech.maven.publish.base")
 }
 
 android {
     namespace = "io.github.rosemoe.sora.oniguruma"
-
+    compileSdk = 36
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
