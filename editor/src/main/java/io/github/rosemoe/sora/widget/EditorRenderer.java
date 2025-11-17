@@ -47,6 +47,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.collection.MutableIntList;
+import androidx.collection.MutableLongObjectMap;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -114,6 +115,7 @@ public class EditorRenderer {
     private final LongArrayList postDrawLineNumbers = new LongArrayList();
     private final MutableIntList postDrawCurrentLines = new MutableIntList();
     private final LongArrayList matchedPositions = new LongArrayList();
+    private final MutableLongObjectMap<ResolvableColor> highlightPositions = new MutableLongObjectMap();
     private final SparseArray<ContentLine> preloadedLines = new SparseArray<>();
     private final SparseArray<Directions> preloadedDirections = new SparseArray<>();
     private final CodeEditor editor;
@@ -387,7 +389,20 @@ public class EditorRenderer {
         var widths = cache != null && cache.getUpdateTimestamp() >= displayTimestamp ? cache.getWidths() : null;
         widths = widths != null && widths.length > line.length() ? widths : null;
         tr.set(line, row.startColumn, row.endColumn, spanReader.getSpansOnLine(row.lineIndex), row.inlayHints, content.getLineDirections(row.lineIndex), paintGeneral, widths, createTextRowParams());
+        applySelectedTextRange(tr, row.lineIndex);
         return tr;
+    }
+
+    private void applySelectedTextRange(TextRow tr, int lineIndex) {
+        if (cursor.isSelected() && lineIndex >= cursor.getLeftLine() && lineIndex <= cursor.getRightLine()) {
+            int startColInLine = lineIndex == cursor.getLeftLine() ? cursor.getLeftColumn() : 0;
+            int endColInLine = lineIndex == cursor.getRightLine() ? cursor.getRightColumn() : lineBuf.length();
+            startColInLine = Math.max(tr.getTextStart(), startColInLine);
+            endColInLine = Math.min(tr.getTextEnd(), endColInLine);
+            if (startColInLine < endColInLine) {
+                tr.setSelectedRange(startColInLine, endColInLine);
+            }
+        }
     }
 
     protected float drawSingleTextLine(Canvas canvas, int line, float offsetX, float offsetY, Spans.Reader spans, boolean visibleOnly) {
@@ -403,9 +418,10 @@ public class EditorRenderer {
         var widths = cache != null && cache.getUpdateTimestamp() >= displayTimestamp ? cache.getWidths() : null;
         widths = widths != null && widths.length > lineBuf.length() ? widths : null;
         tr.set(lineBuf, 0, columnCount, spans.getSpansOnLine(line), lineInlays, getLineDirections(line), paintGeneral, widths, createTextRowParams());
+        applySelectedTextRange(tr, line);
         if (canvas != null) {
             canvas.save();
-            canvas.translate(offsetX, editor.getRowTopOfText(0) + offsetY);
+            canvas.translate(offsetX, editor.getRowTop(0) + offsetY);
             if (visibleOnly) {
                 float visibleStart = Math.max(0f, -offsetX);
                 float visibleEnd = Math.max(visibleStart, -offsetX + editor.getWidth());
@@ -731,7 +747,7 @@ public class EditorRenderer {
                     colorId = EditorColorScheme.CURRENT_LINE;
                 }
                 drawColor(canvas, editor.getColorScheme().getColor(colorId), tmpRect);
-                if (canvas.isHardwareAccelerated() && editor.isHardwareAcceleratedDrawAllowed()
+                if (canvas.isHardwareAccelerated() && editor.isHardwareAcceleratedDrawAllowed() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
                         && editor.getRenderContext().getRenderNodeHolder() != null && !editor.getEventHandler().isScaling &&
                         (editor.getProps().cacheRenderNodeForLongLines || getLine(block.startLine).length() < 128)) {
                     editor.getRenderContext().getRenderNodeHolder().drawLineHardwareAccelerated(canvas, block.startLine, offset, offsetLine * editor.getRowHeight());
@@ -1127,7 +1143,9 @@ public class EditorRenderer {
         RowIterator rowIterator = editor.getLayout().obtainRowIterator(firstVis, preloadedLines);
         Spans spans = editor.getStyles() == null ? null : editor.getStyles().spans;
         var matchedPositions = this.matchedPositions;
+        var highlightPositions = this.highlightPositions;
         matchedPositions.clear();
+        highlightPositions.clear();
         int currentLine = cursor.isSelected() ? -1 : cursor.getLeftLine();
         int currentLineBgColor = editor.getColorScheme().getColor(EditorColorScheme.CURRENT_LINE);
         int lastPreparedLine = -1;
@@ -1218,6 +1236,7 @@ public class EditorRenderer {
             int columnCount = getColumnCount(line);
             if (lastPreparedLine != line) {
                 editor.computeMatchedPositions(line, matchedPositions);
+                editor.computeHighlightPositions(line, highlightPositions);
                 prepareLine(line);
                 lastPreparedLine = line;
             }
@@ -1233,6 +1252,17 @@ public class EditorRenderer {
                     var end = IntPair.getSecond(position);
                     drawRowRegionBackground(canvas, row, start, end, rowInf.startColumn, rowInf.endColumn, editor.getColorScheme().getColor(EditorColorScheme.MATCHED_TEXT_BACKGROUND));
                 }
+            }
+
+            // Draw highlight text background
+            if (highlightPositions._size > 0) {
+                int finalRow = row;
+                highlightPositions.forEach((position, resolvableColor) -> {
+                    var start = IntPair.getFirst(position);
+                    var end = IntPair.getSecond(position);
+                    drawRowRegionBackground(canvas, finalRow, start, end, rowInf.startColumn, rowInf.endColumn, resolvableColor.resolve(editor.getColorScheme()));
+                    return null;
+                });
             }
 
             // Draw selected text background
@@ -1348,8 +1378,10 @@ public class EditorRenderer {
                 // Draw without hardware acceleration
                 TextRow tr = new TextRow();
                 tr.set(lineBuf, rowInf.startColumn, rowInf.endColumn, reader.getSpansOnLine(line), rowInf.inlayHints, getLineDirections(line), paintGeneral, lineCache, createTextRowParams());
+                applySelectedTextRange(tr, line);
+
                 canvas.save();
-                canvas.translate(-offsetCopy, editor.getRowTopOfText(row) - editor.getOffsetY());
+                canvas.translate(-offsetCopy, editor.getRowTop(row) - editor.getOffsetY());
                 // visible editor window: [offsetX, offsetX+editorWidth]
                 // current row window region: [textRegionOffsetW+leftMiniGraphWidth, textRegionOffsetX+leftMiniGraphX+rowWidth]
                 // shifted start at offsetX-(textRegionOffsetX+leftMiniGraphWidth)
@@ -1370,7 +1402,7 @@ public class EditorRenderer {
                     drawMiniGraph(canvas, paintingOffset, row, softwrapRightGraph);
                 }
             } else {
-                paintingOffset = offset + editor.getRenderContext().getRenderNodeHolder().drawLineHardwareAccelerated(canvas, line, offset, editor.getRowTop(line) - editor.getOffsetY());
+                paintingOffset = offset + editor.getRenderContext().getRenderNodeHolder().drawLineHardwareAccelerated(canvas, line, offset, editor.getRowTop(row) - editor.getOffsetY());
                 // Draw hard wrap
                 if (rowInf.endColumn == columnCount && (nonPrintableFlags & CodeEditor.FLAG_DRAW_LINE_SEPARATOR) != 0) {
                     drawMiniGraph(canvas, paintingOffset, row, lineBreakGraph);

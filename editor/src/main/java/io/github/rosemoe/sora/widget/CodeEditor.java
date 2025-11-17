@@ -75,6 +75,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 import androidx.annotation.UiThread;
 import androidx.collection.MutableIntSet;
+import androidx.collection.MutableLongObjectMap;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -111,9 +112,11 @@ import io.github.rosemoe.sora.lang.analysis.StyleUpdateRange;
 import io.github.rosemoe.sora.lang.diagnostic.DiagnosticsContainer;
 import io.github.rosemoe.sora.lang.format.Formatter;
 import io.github.rosemoe.sora.lang.styling.CodeBlock;
+import io.github.rosemoe.sora.lang.styling.HighlightTextContainer;
 import io.github.rosemoe.sora.lang.styling.Span;
 import io.github.rosemoe.sora.lang.styling.SpanFactory;
 import io.github.rosemoe.sora.lang.styling.Styles;
+import io.github.rosemoe.sora.lang.styling.color.ResolvableColor;
 import io.github.rosemoe.sora.lang.styling.inlayHint.InlayHintsContainer;
 import io.github.rosemoe.sora.lang.styling.inlayHint.IntSetUpdateRange;
 import io.github.rosemoe.sora.text.CharPosition;
@@ -355,6 +358,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
     private Styles textStyles;
     private DiagnosticsContainer diagnostics;
     private InlayHintsContainer inlayHints;
+    private HighlightTextContainer highlightTextContainer;
     private RenderContext renderContext;
     private EditorRenderer renderer;
     private boolean hardwareAccAllowed;
@@ -992,6 +996,9 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         if (this.inlayHints != null) {
             setInlayHints(null);
         }
+        if (this.highlightTextContainer != null) {
+            setHighlightTexts(null);
+        }
     }
 
     /**
@@ -1458,6 +1465,43 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
             }
             if (start > lineRight) {
                 break;
+            }
+        }
+    }
+
+
+    protected void computeHighlightPositions(int line, MutableLongObjectMap<ResolvableColor> positions) {
+        positions.clear();
+        if (highlightTextContainer == null) {
+            return;
+        }
+        var highlights = highlightTextContainer.getForLine(line);
+        if (highlights.isEmpty()) {
+            return;
+        }
+        int lineColumnCount = text.getColumnCount(line);
+        boolean highlightBlankLine = false;
+        for (var highlight : highlights) {
+            if (line < highlight.getStartLine() || line > highlight.getEndLine()) {
+                continue;
+            }
+            int startColumn = (line == highlight.getStartLine()) ? highlight.getStartColumn() : 0;
+            int endColumn = (line == highlight.getEndLine()) ? highlight.getEndColumn() : lineColumnCount;
+            if (startColumn < 0) {
+                startColumn = 0;
+            } else if (startColumn > lineColumnCount) {
+                startColumn = lineColumnCount;
+            }
+            if (endColumn < 0) {
+                endColumn = 0;
+            } else if (endColumn > lineColumnCount) {
+                endColumn = lineColumnCount;
+            }
+            if (lineColumnCount == 0) {
+                continue;
+            }
+            if (startColumn < endColumn) {
+                positions.put(IntPair.pack(startColumn, endColumn), highlight.getColor());
             }
         }
     }
@@ -4172,6 +4216,45 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         return inlayHints;
     }
 
+    @UiThread
+    public void setHighlightTexts(@Nullable HighlightTextContainer highlightTexts) {
+        var affectedLines = new MutableIntSet();
+        var oldHighlights = this.highlightTextContainer;
+        if (oldHighlights != null) {
+            var lines = oldHighlights.getLineNumbers();
+            for (int line : lines) {
+                affectedLines.add(line);
+            }
+        }
+        this.highlightTextContainer = highlightTexts;
+        if (highlightTexts != null) {
+            var lines = highlightTexts.getLineNumbers();
+            for (int line : lines) {
+                affectedLines.add(line);
+            }
+        }
+        if (affectedLines._size == 0) {
+            return;
+        }
+        if (layout == null || renderContext == null) {
+            invalidate();
+            return;
+        }
+        var range = new IntSetUpdateRange(affectedLines);
+        if (!layoutBusy) {
+            layout.invalidateLines(range);
+        } else {
+            createLayout();
+        }
+        renderContext.invalidateRenderNodes();
+        invalidate();
+    }
+
+    @Nullable
+    public HighlightTextContainer getHighlightTexts() {
+        return highlightTextContainer;
+    }
+
     /**
      * Hide auto complete window if shown
      */
@@ -4685,7 +4768,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
     public PointerIcon onResolvePointerIcon(MotionEvent event, int pointerIndex) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
-                if (isFormatting()) {
+                if (isFormatting() || layoutBusy) {
                     return PointerIcon.getSystemIcon(getContext(), PointerIcon.TYPE_WAIT);
                 }
                 if (touchHandler.hasAnyHeldHandle()) {
@@ -4702,6 +4785,12 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
                 if (region == RegionResolverKt.REGION_TEXT && inbound) {
                     if (touchHandler.mouseCanMoveText && !touchHandler.mouseClick) {
                         return PointerIcon.getSystemIcon(getContext(), PointerIcon.TYPE_GRABBING);
+                    }
+                    if (renderer.lastStuckLines != null) {
+                        var stickyLineCount = renderer.lastStuckLines.size();
+                        if (stickyLineCount > 0 && event.getY() < getRowBottom(stickyLineCount - 1)) {
+                            return PointerIcon.getSystemIcon(getContext(), PointerIcon.TYPE_HAND);
+                        }
                     }
                     return PointerIcon.getSystemIcon(getContext(), PointerIcon.TYPE_TEXT);
                 } else if (region == RegionResolverKt.REGION_LINE_NUMBER) {
@@ -5071,6 +5160,9 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
             if (inlayHints != null) {
                 inlayHints.updateOnInsertion(startLine, startColumn, endLine, endColumn);
             }
+            if (highlightTextContainer != null) {
+                highlightTextContainer.updateOnInsertion(startLine, startColumn, endLine, endColumn);
+            }
         } catch (Exception e) {
             Log.w(LOG_TAG, "Update failure", e);
         }
@@ -5119,6 +5211,9 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
             }
             if (inlayHints != null) {
                 inlayHints.updateOnDeletion(startLine, startColumn, endLine, endColumn);
+            }
+            if (highlightTextContainer != null) {
+                highlightTextContainer.updateOnDeletion(startLine, startColumn, endLine, endColumn);
             }
         } catch (Exception e) {
             Log.w(LOG_TAG, "Update failure", e);
