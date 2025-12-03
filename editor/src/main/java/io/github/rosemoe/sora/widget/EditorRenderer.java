@@ -90,6 +90,7 @@ import io.github.rosemoe.sora.util.TemporaryCharBuffer;
 import io.github.rosemoe.sora.widget.layout.Row;
 import io.github.rosemoe.sora.widget.layout.RowIterator;
 import io.github.rosemoe.sora.widget.rendering.RenderingConstants;
+import io.github.rosemoe.sora.widget.rendering.TextAdvancesCache;
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme;
 import io.github.rosemoe.sora.widget.style.DiagnosticIndicatorStyle;
 import io.github.rosemoe.sora.widget.style.LineInfoPanelPosition;
@@ -387,7 +388,7 @@ public class EditorRenderer {
         TextRow tr = new TextRow();
         var cache = editor.getRenderContext().getCache().queryMeasureCache(row.lineIndex);
         var widths = cache != null && cache.getUpdateTimestamp() >= displayTimestamp ? cache.getWidths() : null;
-        widths = widths != null && widths.length > line.length() ? widths : null;
+        widths = widths != null && widths.getSize() > line.length() ? widths : null;
         tr.set(line, row.startColumn, row.endColumn, spanReader.getSpansOnLine(row.lineIndex), row.inlayHints, content.getLineDirections(row.lineIndex), paintGeneral, widths, createTextRowParams());
         applySelectedTextRange(tr, row.lineIndex);
         return tr;
@@ -416,7 +417,7 @@ public class EditorRenderer {
         List<InlayHint> lineInlays = inlayHints == null ? Collections.emptyList() : inlayHints.getForLine(line);
         var cache = editor.getRenderContext().getCache().queryMeasureCache(line);
         var widths = cache != null && cache.getUpdateTimestamp() >= displayTimestamp ? cache.getWidths() : null;
-        widths = widths != null && widths.length > lineBuf.length() ? widths : null;
+        widths = widths != null && widths.getSize() > lineBuf.length() ? widths : null;
         tr.set(lineBuf, 0, columnCount, spans.getSpansOnLine(line), lineInlays, getLineDirections(line), paintGeneral, widths, createTextRowParams());
         applySelectedTextRange(tr, line);
         if (canvas != null) {
@@ -1232,6 +1233,8 @@ public class EditorRenderer {
         // Other system line background are drawn last
         for (int row = firstVis; row <= editor.getLastVisibleRow() && rowIterator.hasNext(); row++) {
             Row rowInf = rowIterator.next();
+            canvas.save();
+            canvas.translate(rowInf.renderTranslateX, 0f);
             int line = rowInf.lineIndex;
             int columnCount = getColumnCount(line);
             if (lastPreparedLine != line) {
@@ -1290,6 +1293,7 @@ public class EditorRenderer {
                     drawRowRegionBackground(canvas, row, selectionStart, selectionEnd, rowInf.startColumn, rowInf.endColumn, editor.getColorScheme().getColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND));
                 }
             }
+            canvas.restore();
         }
         rowIterator.reset();
 
@@ -1302,7 +1306,7 @@ public class EditorRenderer {
         // Step 2 - Draw text and text decorations
         Spans.Reader reader = null;
         lastPreparedLine = -1;
-        float[] lineCache = null;
+        TextAdvancesCache lineCache = null;
         for (int row = firstVis; row <= editor.getLastVisibleRow() && rowIterator.hasNext(); row++) {
             Row rowInf = rowIterator.next();
             int line = rowInf.lineIndex;
@@ -1318,7 +1322,7 @@ public class EditorRenderer {
             if (lastPreparedLine != line) {
                 lastPreparedLine = line;
                 var cache = editor.getRenderContext().getCache().queryMeasureCache(line);
-                if (cache != null && cache.getUpdateTimestamp() == displayTimestamp && cache.getWidths() != null && cache.getWidths().length > columnCount) {
+                if (cache != null && cache.getUpdateTimestamp() == displayTimestamp && cache.getWidths() != null && cache.getWidths().getSize() > columnCount) {
                     lineCache = cache.getWidths();
                 } else {
                     lineCache = null;
@@ -1358,6 +1362,10 @@ public class EditorRenderer {
             // Get visible region on the line
             float paintingOffset = -offset2;
             float offsetCopy = offset2;
+
+            paintingOffset += rowInf.renderTranslateX;
+            offsetCopy -= rowInf.renderTranslateX;
+
             if (!rowInf.isLeadingRow) {
                 if ((editor.getNonPrintablePaintingFlags() & CodeEditor.FLAG_DRAW_SOFT_WRAP) != 0) {
                     drawMiniGraph(canvas, offset, row, softwrapLeftGraph);
@@ -1491,21 +1499,21 @@ public class EditorRenderer {
             final var layout = editor.getLayout();
             // Draw cursors
             if (cursor.isSelected()) {
-                if (cursor.getLeftLine() == line && isInside(cursor.getLeftColumn(), rowInf.startColumn, rowInf.endColumn, line)) {
+                if (cursor.getLeftLine() == line && isInside(cursor.getLeftColumn(), rowInf.startColumn, rowInf.endColumn, rowInf.isTrailingRow)) {
                     float centerX = editor.measureTextRegionOffset() + layout.getCharLayoutOffset(cursor.getLeftLine(), cursor.getLeftColumn())[1] - editor.getOffsetX();
                     var type = content.isRtlAt(cursor.getLeftLine(), cursor.getLeftColumn()) ? SelectionHandleStyle.HANDLE_TYPE_RIGHT : SelectionHandleStyle.HANDLE_TYPE_LEFT;
                     var task = new DrawCursorTask(centerX, getRowBottomForBackground(row) - editor.getOffsetY(), type, editor.getLeftHandleDescriptor());
                     postDrawCursor.add(task);
                     applyBidiIndicatorAttrs(task, cursor.getLeftLine(), cursor.getLeftColumn());
                 }
-                if (cursor.getRightLine() == line && isInside(cursor.getRightColumn(), rowInf.startColumn, rowInf.endColumn, line)) {
+                if (cursor.getRightLine() == line && isInside(cursor.getRightColumn(), rowInf.startColumn, rowInf.endColumn, rowInf.isTrailingRow)) {
                     float centerX = editor.measureTextRegionOffset() + layout.getCharLayoutOffset(cursor.getRightLine(), cursor.getRightColumn())[1] - editor.getOffsetX();
                     var type = content.isRtlAt(cursor.getRightLine(), cursor.getRightColumn()) ? SelectionHandleStyle.HANDLE_TYPE_LEFT : SelectionHandleStyle.HANDLE_TYPE_RIGHT;
                     var task = new DrawCursorTask(centerX, getRowBottomForBackground(row) - editor.getOffsetY(), type, editor.getRightHandleDescriptor());
                     postDrawCursor.add(task);
                     applyBidiIndicatorAttrs(task, cursor.getRightLine(), cursor.getRightColumn());
                 }
-            } else if (cursor.getLeftLine() == line && isInside(cursor.getLeftColumn(), rowInf.startColumn, rowInf.endColumn, line)) {
+            } else if (cursor.getLeftLine() == line && isInside(cursor.getLeftColumn(), rowInf.startColumn, rowInf.endColumn, rowInf.isTrailingRow)) {
                 float centerX = editor.measureTextRegionOffset() + layout.getCharLayoutOffset(cursor.getLeftLine(), cursor.getLeftColumn())[1] - editor.getOffsetX();
                 var task = new DrawCursorTask(centerX, getRowBottomForBackground(row) - editor.getOffsetY(), SelectionHandleStyle.HANDLE_TYPE_INSERT, editor.getInsertHandleDescriptor());
                 postDrawCursor.add(task);
@@ -1513,7 +1521,7 @@ public class EditorRenderer {
             }
             // Draw dragging selection or selecting target
             if (draggingSelection != null) {
-                if (draggingSelection.line == line && isInside(draggingSelection.column, rowInf.startColumn, rowInf.endColumn, line)) {
+                if (draggingSelection.line == line && isInside(draggingSelection.column, rowInf.startColumn, rowInf.endColumn, rowInf.isTrailingRow)) {
                     float centerX = editor.measureTextRegionOffset() + layout.getCharLayoutOffset(draggingSelection.line, draggingSelection.column)[1] - editor.getOffsetX();
                     var task = new DrawCursorTask(centerX, getRowBottomForBackground(row) - editor.getOffsetY(), SelectionHandleStyle.HANDLE_TYPE_UNDEFINED, null);
                     postDrawCursor.add(task);
@@ -1521,7 +1529,7 @@ public class EditorRenderer {
                 }
             } else if (editor.isInMouseMode() && editor.isTextSelected()) {
                 var target = editor.getSelectingTarget();
-                if (target != null && target.line == line && isInside(target.column, rowInf.startColumn, rowInf.endColumn, line)) {
+                if (target != null && target.line == line && isInside(target.column, rowInf.startColumn, rowInf.endColumn, rowInf.isTrailingRow)) {
                     float centerX = editor.measureTextRegionOffset() + layout.getCharLayoutOffset(target.line, target.column)[1] - editor.getOffsetX();
                     var task = new DrawCursorTask(centerX, getRowBottomForBackground(row) - editor.getOffsetY(), SelectionHandleStyle.HANDLE_TYPE_UNDEFINED, null);
                     postDrawCursor.add(task);
@@ -1546,18 +1554,15 @@ public class EditorRenderer {
     }
 
     private long getBidiIndicatorAttrs(int line, int column) {
-        if (!editor.getProps().showBidiDirectionIndicator) {
-            return IntPair.pack(0, 0);
-        }
         var lineDirections = getLineDirections(line);
         int count = lineDirections.getRunCount();
         if (count == 1) {
             // Simple LTR/RTL Run
-            return IntPair.pack(0, 0);
+            return IntPair.pack(0, lineDirections.isRunRtl(0) ? 1 : 0);
         }
         for (int i = 0; i < count; i++) {
             if (i + 1 == count || lineDirections.getRunStart(i) <= column && column < lineDirections.getRunEnd(i)) {
-                return IntPair.pack(1, lineDirections.isRunRtl(i) ? 1 : 0);
+                return IntPair.pack(editor.getProps().showBidiDirectionIndicator ? 1 : 0, lineDirections.isRunRtl(i) ? 1 : 0);
             }
         }
         return IntPair.pack(0, 0);
@@ -1663,9 +1668,9 @@ public class EditorRenderer {
                     int endColumn = i == endRow ? end.column : row.endColumn;
                     float finalOffset;
                     if (editor.isWordwrap() && !row.isLeadingRow && (editor.getNonPrintablePaintingFlags() & CodeEditor.FLAG_DRAW_SOFT_WRAP) != 0) {
-                        finalOffset = offset + getMiniGraphWidth();
+                        finalOffset = offset + row.renderTranslateX + getMiniGraphWidth();
                     } else {
-                        finalOffset = offset;
+                        finalOffset = offset + row.renderTranslateX;
                     }
                     if (startColumn == endColumn) {
                         // Make it always visible
@@ -1836,12 +1841,11 @@ public class EditorRenderer {
      * @param index Index to test
      * @param start Start of region
      * @param end   End of region
-     * @param line  Checking line
      * @return true if cursor should be drawn in this row
      */
-    private boolean isInside(int index, int start, int end, int line) {
+    private boolean isInside(int index, int start, int end, boolean isLastRow) {
         // Due not to draw duplicate cursors for a single one
-        if (index == end && content.getLine(line).length() != end) {
+        if (index == end && !isLastRow) {
             return false;
         }
         return index >= start && index <= end;
@@ -2218,13 +2222,31 @@ public class EditorRenderer {
             var color = editor.getColorScheme().getColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_FOREGROUND);
             var backgroundColor = editor.getColorScheme().getColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_BACKGROUND);
             var underlineColor = editor.getColorScheme().getColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_UNDERLINE);
+            var borderColor = editor.getColorScheme().getColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_BORDER);
+            var borderWidth = editor.getHighlightedDelimiterBorderWidth();
             if (isInvalidTextBounds(paired.leftIndex, paired.leftLength) || isInvalidTextBounds(paired.rightIndex, paired.rightLength)) {
                 // Index out of bounds
                 return;
             }
 
-            patchTextRegionWithColor(canvas, textOffset, paired.leftIndex, paired.leftIndex + paired.leftLength, color, backgroundColor, underlineColor);
-            patchTextRegionWithColor(canvas, textOffset, paired.rightIndex, paired.rightIndex + paired.rightLength, color, backgroundColor, underlineColor);
+            boolean continuous = paired.leftIndex + paired.leftLength == paired.rightIndex;
+            if (color != 0 || underlineColor != 0) {
+                if (continuous) {
+                    patchTextRegionWithColor(canvas, textOffset, paired.leftIndex, paired.rightIndex + paired.rightLength, color, backgroundColor, underlineColor);
+                } else {
+                    patchTextRegionWithColor(canvas, textOffset, paired.leftIndex, paired.leftIndex + paired.leftLength, color, backgroundColor, underlineColor);
+                    patchTextRegionWithColor(canvas, textOffset, paired.rightIndex, paired.rightIndex + paired.rightLength, color, backgroundColor, underlineColor);
+                }
+                backgroundColor = 0;
+            }
+            if (backgroundColor != 0 || (borderColor != 0 && borderWidth > 0)) {
+                if (continuous) {
+                    patchTextBackgroundRegions(canvas, textOffset, paired.leftIndex, paired.rightIndex + paired.rightLength, backgroundColor, borderWidth, borderColor);
+                } else {
+                    patchTextBackgroundRegions(canvas, textOffset, paired.leftIndex, paired.leftIndex + paired.leftLength, backgroundColor, borderWidth, borderColor);
+                    patchTextBackgroundRegions(canvas, textOffset, paired.rightIndex, paired.rightIndex + paired.rightLength, backgroundColor, borderWidth, borderColor);
+                }
+            }
         }
     }
 
@@ -2268,15 +2290,55 @@ public class EditorRenderer {
                 var bottom = params.getTextBottom() - params.getTextHeight() * 0.05f;
                 canvas.drawLine(horizontalOffset, bottom, horizontalOffset + width, bottom, paintOther);
             }
-        });
+        }, null);
         paintGeneral.setStyle(Paint.Style.FILL);
         paintGeneral.setFakeBoldText(false);
         paintGeneral.setTextSkewX(0f);
         paintGeneral.setStrikeThruText(false);
     }
 
+    protected void patchTextBackgroundRegions(Canvas canvas, float textOffset, int start, int end, int backgroundColor, float borderWidth, int borderColor) {
+        if (backgroundColor == 0 && (borderWidth <= 0 || borderColor == 0)) {
+            return;
+        }
+        patchTextRegions(canvas, textOffset, start, end, null, (float left, float right) -> {
+            if (textOffset + left < 0) {
+                return true;
+            }
+            tmpRect.top = getRowTopForBackground(0);
+            tmpRect.bottom = getRowBottomForBackground(0);
+            tmpRect.left = left;
+            tmpRect.right = right;
+            if (backgroundColor != 0) {
+                paintOther.setColor(backgroundColor);
+                if (editor.getProps().enableRoundTextBackground) {
+                    canvas.drawRoundRect(tmpRect, editor.getRowHeight() * editor.getProps().roundTextBackgroundFactor, editor.getRowHeight() * editor.getProps().roundTextBackgroundFactor, paintOther);
+                } else {
+                    canvas.drawRect(tmpRect, paintOther);
+                }
+            }
+            if (borderWidth > 0 && borderColor != 0) {
+                paintOther.setStyle(android.graphics.Paint.Style.STROKE);
+                paintOther.setColor(borderColor);
+                paintOther.setStrokeWidth(borderWidth);
+                if (editor.getProps().enableRoundTextBackground) {
+                    canvas.drawRoundRect(tmpRect, editor.getRowHeight() * editor.getProps().roundTextBackgroundFactor, editor.getRowHeight() * editor.getProps().roundTextBackgroundFactor, paintOther);
+                } else {
+                    canvas.drawRect(tmpRect, paintOther);
+                }
+                paintOther.setStyle(android.graphics.Paint.Style.FILL);
+            }
+            return textOffset + right > editor.getWidth();
+        });
+    }
 
-    protected void patchTextRegions(Canvas canvas, float textOffset, int start, int end, @NonNull TextRow.DrawTextConsumer patch) {
+
+    protected void patchTextRegions(Canvas canvas, float textOffset, int start, int end,
+                                    @Nullable TextRow.DrawTextConsumer patch,
+                                    @Nullable TextRow.BackgroundRegionConsumer bgPatch) {
+        if (patch == null && bgPatch == null) {
+            return;
+        }
         var firstVisRow = editor.getFirstVisibleRow();
         var lastVisRow = editor.getLastVisibleRow();
 
@@ -2301,8 +2363,13 @@ public class EditorRenderer {
             float minHorizontalOffset = Math.max(0, -horizontalOffset);
             float maxHorizontalOffset = minHorizontalOffset + editor.getWidth();
             canvas.save();
-            canvas.translate(horizontalOffset, editor.getRowTop(i) - editor.getOffsetY());
-            tr.iterateDrawTextRegions(startOnRow, endOnRow, canvas, minHorizontalOffset, maxHorizontalOffset, true, patch);
+            canvas.translate(horizontalOffset + row.renderTranslateX, editor.getRowTop(i) - editor.getOffsetY());
+            if (bgPatch != null) {
+                tr.iterateBackgroundRegions(startOnRow, endOnRow, false, false, bgPatch);
+            }
+            if (patch != null) {
+                tr.iterateDrawTextRegions(startOnRow, endOnRow, canvas, minHorizontalOffset, maxHorizontalOffset, true, patch);
+            }
             canvas.restore();
         }
     }
@@ -2365,8 +2432,8 @@ public class EditorRenderer {
             var cache = editor.getRenderContext().getCache().getOrCreateMeasureCache(startLine);
             if (cache.getUpdateTimestamp() < timestamp) {
                 var forced = false;
-                if (cache.getWidths() == null || cache.getWidths().length < line.length()) {
-                    cache.setWidths(new float[Math.max(line.length() + 8, 90)]);
+                if (cache.getWidths() == null || cache.getWidths().getSize() < line.length()) {
+                    cache.setWidths(new TextAdvancesCache(Math.max(line.length() + 8, 90)));
                     forced = true;
                 }
                 var spans = editor.getSpansForLine(startLine);
@@ -2382,9 +2449,9 @@ public class EditorRenderer {
                     var lineText = text.getLine(startLine);
                     var directions = text.getLineDirections(startLine);
                     int requiredSize = lineText.length() + 10;
-                    float[] widths = cache.getWidths();
-                    if (widths == null || widths.length < requiredSize) {
-                        widths = new float[requiredSize];
+                    var widths = cache.getWidths();
+                    if (widths == null || widths.getSize() < requiredSize) {
+                        widths = new TextAdvancesCache(requiredSize);
                         cache.setWidths(widths);
                     }
                     while (itr.hasNext()) {
@@ -2442,6 +2509,16 @@ public class EditorRenderer {
             isRightToLeft = rightToLeft;
         }
 
+        private int getActualHandleType() {
+            if (isRightToLeft && handleType == SelectionHandleStyle.HANDLE_TYPE_LEFT) {
+                return SelectionHandleStyle.HANDLE_TYPE_RIGHT;
+            }
+            if (isRightToLeft && handleType == SelectionHandleStyle.HANDLE_TYPE_RIGHT) {
+                return SelectionHandleStyle.HANDLE_TYPE_LEFT;
+            }
+            return handleType;
+        }
+
         private boolean drawSelForLeftRight() {
             return ((handleType == SelectionHandleStyle.HANDLE_TYPE_LEFT || handleType == SelectionHandleStyle.HANDLE_TYPE_RIGHT)
                     && editor.getProps().showSelectionWhenSelected && !editor.isInMouseMode());
@@ -2471,7 +2548,7 @@ public class EditorRenderer {
             // Follow the thumb or stick to text row
             if (!descriptor.position.isEmpty()) {
                 if (!editor.isStickyTextSelection()) {
-                    if (editor.getEventHandler().getTouchedHandleType() == handleType
+                    if (editor.getEventHandler().getTouchedHandleType() == getActualHandleType()
                             && handleType != SelectionHandleStyle.HANDLE_TYPE_UNDEFINED && editor.getEventHandler().isHandleMoving()) {
                         x = editor.getEventHandler().motionX + (descriptor.alignment != SelectionHandleStyle.ALIGN_CENTER ? descriptor.position.width() : 0) * (descriptor.alignment == SelectionHandleStyle.ALIGN_LEFT ? 1 : -1);
                         y = editor.getEventHandler().motionY - descriptor.position.height() * 2 / 3f;

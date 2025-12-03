@@ -286,6 +286,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
     private float dividerMarginRight;
     private float insertSelectionWidth;
     private float blockLineWidth;
+    private float highlightedDelimiterBorderWidth;
     private float verticalScrollFactor;
     private float lineInfoTextSize;
     private float lineSpacingMultiplier = 1f;
@@ -316,6 +317,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
     private boolean cursorAnimation;
     private boolean pinLineNumber;
     private boolean antiWordBreaking;
+    private boolean wordwrapRtlDisplaySupport;
     private boolean firstLineNumberAlwaysVisible;
     private boolean ligatureEnabled;
     private boolean lastCursorState;
@@ -590,7 +592,8 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         props = new DirectAccessProps();
         dpUnit = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10, Resources.getSystem().getDisplayMetrics()) / 10f;
         dividerWidth = dpUnit;
-        insertSelectionWidth = dpUnit;
+        insertSelectionWidth = dpUnit * 1.5f;
+        highlightedDelimiterBorderWidth = dpUnit;
         dividerMarginLeft = dividerMarginRight = dpUnit * 2;
 
         matrix = new Matrix();
@@ -697,7 +700,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
 
         int wordwrapMode = array.getInt(R.styleable.CodeEditor_wordwrapMode, 0);
         if (wordwrapMode != 0) {
-            setWordwrap(true, wordwrapMode > 1);
+            setWordwrap(true, wordwrapMode > 1, false);
         }
 
         setText(array.getString(R.styleable.CodeEditor_text));
@@ -1082,11 +1085,19 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
     }
 
     /**
+     * This only makes sense when wordwrap is enabled.
+     * Checks if RTL-based text should display from right of the widget in wordwrap mode.
+     */
+    public boolean isWordwrapRtlDisplaySupport() {
+        return wordwrapRtlDisplaySupport;
+    }
+
+    /**
      * Set whether text in editor should be wrapped to fit its size, with anti-word-breaking enabled
      * by default
      *
      * @param wordwrap Whether to wrap words
-     * @see #setWordwrap(boolean, boolean)
+     * @see #setWordwrap(boolean, boolean, boolean)
      * @see #isWordwrap()
      */
     public void setWordwrap(boolean wordwrap) {
@@ -1101,9 +1112,22 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      * @see #isWordwrap()
      */
     public void setWordwrap(boolean wordwrap, boolean antiWordBreaking) {
-        if (this.wordwrap != wordwrap || this.antiWordBreaking != antiWordBreaking) {
+        setWordwrap(wordwrap, antiWordBreaking, false);
+    }
+
+    /**
+     * Set whether text in editor should be wrapped to fit its size
+     *
+     * @param wordwrap         Whether to wrap words
+     * @param antiWordBreaking Prevent English words to be split into two lines
+     * @param supportRtlRow    Allow rows with RTL base direction to display from the right side of widget
+     * @see #isWordwrap()
+     */
+    public void setWordwrap(boolean wordwrap, boolean antiWordBreaking, boolean supportRtlRow) {
+        if (this.wordwrap != wordwrap || this.antiWordBreaking != antiWordBreaking || this.wordwrapRtlDisplaySupport != supportRtlRow) {
             this.wordwrap = wordwrap;
             this.antiWordBreaking = antiWordBreaking;
+            this.wordwrapRtlDisplaySupport = supportRtlRow;
             requestLayoutIfNeeded();
             createLayout();
             if (!wordwrap) {
@@ -1689,7 +1713,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
                 return;
             }
             if (layout instanceof WordwrapLayout && wordwrap) {
-                var newLayout = new WordwrapLayout(this, text, antiWordBreaking, (WordwrapLayout) layout, clearWordwrapCache);
+                var newLayout = new WordwrapLayout(this, text, antiWordBreaking, wordwrapRtlDisplaySupport, (WordwrapLayout) layout, clearWordwrapCache);
                 layout.destroyLayout();
                 layout = newLayout;
                 return;
@@ -1698,7 +1722,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         }
         if (wordwrap) {
             renderer.setCachedLineNumberWidth((int) measureLineNumber());
-            layout = new WordwrapLayout(this, text, antiWordBreaking, null, false);
+            layout = new WordwrapLayout(this, text, antiWordBreaking, wordwrapRtlDisplaySupport, null, false);
         } else {
             layout = new LineBreakLayout(this, text);
         }
@@ -2769,6 +2793,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      * @return Margin left of divider line
      * @see CodeEditor#setDividerMargin(float, float)
      */
+    @Px
     public float getDividerMarginLeft() {
         return dividerMarginLeft;
     }
@@ -2777,6 +2802,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      * @return Margin right of divider line
      * @see CodeEditor#setDividerMargin(float, float)
      */
+    @Px
     public float getDividerMarginRight() {
         return dividerMarginRight;
     }
@@ -2818,6 +2844,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
     /**
      * @see #setLineNumberMarginLeft(float)
      */
+    @Px
     public float getLineNumberMarginLeft() {
         return lineNumberMarginLeft;
     }
@@ -2826,6 +2853,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      * @return Width of divider line
      * @see CodeEditor#setDividerWidth(float)
      */
+    @Px
     public float getDividerWidth() {
         return dividerWidth;
     }
@@ -2835,7 +2863,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      *
      * @param dividerWidth Width of divider line
      */
-    public void setDividerWidth(float dividerWidth) {
+    public void setDividerWidth(@Px float dividerWidth) {
         if (dividerWidth < 0) {
             throw new IllegalArgumentException("width can not be under zero");
         }
@@ -2941,7 +2969,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
      *
      * @param width Cursor width
      */
-    public void setCursorWidth(float width) {
+    public void setCursorWidth(@Px float width) {
         if (width < 0) {
             throw new IllegalArgumentException("width can not be under zero");
         }
@@ -2949,8 +2977,25 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         invalidate();
     }
 
+    @Px
     public float getInsertSelectionWidth() {
         return insertSelectionWidth;
+    }
+
+    /**
+     * Border width for highlight delimiter
+     */
+    public void setHighlightedDelimiterBorderWidth(@Px float width) {
+        if (width < 0) {
+            throw new IllegalArgumentException("width can not be under zero");
+        }
+        this.highlightedDelimiterBorderWidth = width;
+        invalidate();
+    }
+
+    @Px
+    public float getHighlightedDelimiterBorderWidth() {
+        return highlightedDelimiterBorderWidth;
     }
 
     /**
@@ -5148,7 +5193,6 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         styleDelegate.onTextChange();
         var start = text.getIndexer().getCharPosition(startLine, startColumn);
         var end = text.getIndexer().getCharPosition(endLine, endColumn);
-        renderer.buildMeasureCacheForLines(startLine, endLine);
 
         // Update spans
         try {
@@ -5169,6 +5213,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         }
 
         layout.afterInsert(content, startLine, startColumn, endLine, endColumn, insertedContent);
+        renderer.buildMeasureCacheForLines(startLine, endLine);
         checkForRelayout();
 
         // Notify input method
@@ -5201,7 +5246,6 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         end.column = endColumn;
         end.line = endLine;
         end.index = start.index + deletedContent.length();
-        renderer.buildMeasureCacheForLines(startLine, startLine + 1);
 
         try {
             if (textStyles != null) {
@@ -5221,6 +5265,7 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         }
 
         layout.afterDelete(content, startLine, startColumn, endLine, endColumn, deletedContent);
+        renderer.buildMeasureCacheForLines(startLine, startLine + 1);
         checkForRelayout();
 
         updateCursor();
