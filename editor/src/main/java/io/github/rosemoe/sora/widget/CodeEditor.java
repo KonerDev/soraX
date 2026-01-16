@@ -5287,11 +5287,6 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         renderer.buildMeasureCacheForLines(startLine, startLine + 1);
         checkForRelayout();
 
-        if (!waitForNextChange) {
-            updateCursorAnchor();
-            ensureSelectionVisible();
-            touchHandler.hideInsertHandle();
-        }
         if (editable && !cursor.isSelected() && !waitForNextChange && !inputConnection.composingText.isComposing() && acceptsComposingText()) {
             cursorAnimator.markEndPos();
             cursorAnimator.start();
@@ -5301,7 +5296,11 @@ public class CodeEditor extends View implements ContentListener, Formatter.Forma
         dispatchEvent(new ContentChangeEvent(this, ContentChangeEvent.ACTION_DELETE, start, end, deletedContent, text.isUndoManagerWorking()));
         onSelectionChanged(SelectionChangeEvent.CAUSE_TEXT_MODIFICATION);
 
-        updateCursor();
+        if (!waitForNextChange) {
+            updateCursor();
+            ensureSelectionVisible();
+            touchHandler.hideInsertHandle();
+        }
     }
 
     @Override
