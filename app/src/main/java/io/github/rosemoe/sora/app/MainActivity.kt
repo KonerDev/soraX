@@ -52,6 +52,7 @@ import io.github.rosemoe.sora.app.lsp.LspTestJavaActivity
 import io.github.rosemoe.sora.app.tests.TestActivity
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.EditorKeyEvent
+import io.github.rosemoe.sora.event.InlayHintClickEvent
 import io.github.rosemoe.sora.event.KeyBindingEvent
 import io.github.rosemoe.sora.event.PublishSearchResultEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
@@ -91,6 +92,7 @@ import io.github.rosemoe.sora.utils.codePointStringAt
 import io.github.rosemoe.sora.utils.escapeCodePointIfNecessary
 import io.github.rosemoe.sora.utils.toast
 import io.github.rosemoe.sora.widget.CodeEditor
+import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.widget.EditorSearcher.SearchOptions
 import io.github.rosemoe.sora.widget.SelectionMovement
 import io.github.rosemoe.sora.widget.component.EditorAutoCompletion
@@ -240,6 +242,9 @@ class MainActivity : AppCompatActivity() {
             subscribeAlways<SideIconClickEvent> {
                 toast(R.string.tip_side_icon)
             }
+            subscribeAlways<InlayHintClickEvent> {
+                toast(R.string.tip_inlay_hint)
+            }
             subscribeAlways<TextSizeChangeEvent> { event ->
                 Log.d(
                     TAG,
@@ -256,6 +261,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            searcher.replaceOptions = EditorSearcher.ReplaceOptions(true)
             // Handle span interactions
             EditorSpanInteractionHandler(this)
             getComponent<EditorAutoCompletion>()
@@ -285,6 +291,7 @@ class MainActivity : AppCompatActivity() {
         updateBtnState()
 
         switchThemeIfRequired(this, binding.editor)
+        computeSearchOptions()
     }
 
     /**
