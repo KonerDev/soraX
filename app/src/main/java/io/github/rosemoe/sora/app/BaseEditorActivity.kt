@@ -21,40 +21,37 @@
  *     Please contact Rosemoe by email 2073412493@qq.com if you need
  *     additional information or have any questions
  */
-package io.github.rosemoe.sora.text.breaker;
+package io.github.rosemoe.sora.app
 
-import androidx.annotation.NonNull;
+import android.os.Bundle
+import android.view.MenuItem
+import androidx.appcompat.app.AppCompatActivity
+import io.github.rosemoe.sora.app.databinding.ActivityEditorBinding
+import io.github.rosemoe.sora.widget.CodeEditor
 
-import io.github.rosemoe.sora.text.ContentLine;
+open class BaseEditorActivity : AppCompatActivity() {
+    protected lateinit var binding: ActivityEditorBinding
 
-public class WordBreakerProgram extends WordBreakerIcu {
+    protected lateinit var editor: CodeEditor
 
-    protected final int length;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityEditorBinding.inflate(layoutInflater)
+        editor = binding.editor
 
-    public WordBreakerProgram(@NonNull ContentLine text) {
-        super(text);
-        this.length = text.length();
+        setContentView(binding.root)
+        setSupportActionBar(binding.activityToolbar)
+        applyEdgeToEdge(this, binding.toolbarContainer, binding.root)
+
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
-    @Override
-    public int getOptimizedBreakPoint(int start, int end) {
-        int icuResult = super.getOptimizedBreakPoint(start, end);
-        if (icuResult != end || end <= start || /* end > start */ Character.isWhitespace(text.charAt(end - 1))) {
-            return icuResult;
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == android.R.id.home) {
+            finish()
+            return true
         }
-        // The content can be placed on a single row
-        if (end == length) {
-            return end;
-        }
-        // Add extra opportunities for dots
-        int index = end - 1;
-        while (index > start) {
-            if (text.charAt(index) == '.' && index - 1 >= start && !Character.isDigit(text.charAt(index - 1))) {
-                // Break after this dot
-                return index + 1;
-            }
-            index--;
-        }
-        return end;
+        return super.onOptionsItemSelected(item)
     }
+
 }
