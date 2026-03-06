@@ -24,7 +24,6 @@
 package io.github.rosemoe.sora.app
 
 import android.content.DialogInterface
-import android.content.res.Configuration
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
@@ -53,6 +52,7 @@ import io.github.rosemoe.sora.app.databinding.ActivityMainBinding
 import io.github.rosemoe.sora.app.lsp.LspTestActivity
 import io.github.rosemoe.sora.app.lsp.LspTestJavaActivity
 import io.github.rosemoe.sora.app.tests.TestActivity
+import io.github.rosemoe.sora.app.tests.paged.PagedEditActivity
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.EditorKeyEvent
 import io.github.rosemoe.sora.event.InlayHintClickEvent
@@ -66,6 +66,7 @@ import io.github.rosemoe.sora.graphics.inlayHint.TextInlayHintRenderer
 import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.lang.JavaLanguageSpec
 import io.github.rosemoe.sora.lang.TsLanguageJava
+import io.github.rosemoe.sora.lang.analysis.AsyncIncrementalAnalyzeManager
 import io.github.rosemoe.sora.lang.diagnostic.DiagnosticRegion
 import io.github.rosemoe.sora.lang.diagnostic.DiagnosticsContainer
 import io.github.rosemoe.sora.lang.styling.color.ConstColor
@@ -128,6 +129,7 @@ class MainActivity : AppCompatActivity() {
             // Load tree-sitter libraries
             System.loadLibrary("android-tree-sitter")
             System.loadLibrary("tree-sitter-java")
+            AsyncIncrementalAnalyzeManager.setUseShallowCopyByDefault(true)
         }
 
         private const val TAG = "MainActivity"
@@ -683,6 +685,7 @@ class MainActivity : AppCompatActivity() {
         val editor = binding.editor
         when (id) {
             R.id.open_test_activity -> startActivity<TestActivity>()
+            R.id.open_paged_edit -> startActivity<PagedEditActivity>()
             R.id.open_lsp_activity -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
                     MaterialAlertDialogBuilder(this)
