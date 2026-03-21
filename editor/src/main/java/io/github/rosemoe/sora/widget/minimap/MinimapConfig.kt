@@ -1,7 +1,7 @@
 /*******************************************************************************
  *    sora-editor - the awesome code editor for Android
  *    https://github.com/Rosemoe/sora-editor
- *    Copyright (C) 2020-2024  Rosemoe
+ *    Copyright (C) 2020-2026  Rosemoe
  *
  *     This library is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU Lesser General Public
@@ -21,28 +21,23 @@
  *     Please contact Rosemoe by email 2073412493@qq.com if you need
  *     additional information or have any questions
  ******************************************************************************/
-@SuppressWarnings("unused")
-object Versions {
-    // Project versions
-    private const val version = "0.24.5"
-    const val versionCode = 94
 
-    val appVersionName by lazy {
-        if (CI.isCiBuild) {
-            "$version-${CI.commitHash}"
-        } else "$version-${System.currentTimeMillis()}"
+package io.github.rosemoe.sora.widget.minimap
+
+/**
+ * Configuration for minimap rendering
+ *
+ * @param minimapDrawTextAsBlocks Draw text as block (rect) instead of glyphs in minimap
+ */
+data class MinimapConfig(
+    val minimapDrawTextAsBlocks: Boolean = false
+) {
+
+    companion object {
+        /**
+         * Default config
+         */
+        val DefaultConfig = MinimapConfig()
     }
 
-    val artifactVersion by lazy {
-        if (CI.isCiBuild) {
-            "$version-SNAPSHOT"
-        } else version
-    }
-
-    // Platform & Tool versions
-    const val buildToolsVersion = "36.0.0"
-    const val compileSdkVersion = 36
-    const val minSdkVersion = 21
-    const val minSdkVersionHighApi = 26
-    const val targetSdkVersion = 36
 }
