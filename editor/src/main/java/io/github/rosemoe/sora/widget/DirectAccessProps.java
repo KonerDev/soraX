@@ -35,6 +35,7 @@ import java.io.Serializable;
 
 import io.github.rosemoe.sora.annotations.Experimental;
 import io.github.rosemoe.sora.annotations.InvalidateRequired;
+import io.github.rosemoe.sora.widget.minimap.MinimapConfig;
 
 /**
  * Direct-access properties.
@@ -567,5 +568,20 @@ public class DirectAccessProps implements Serializable {
      * Select the first completion item on enter for software keyboard
      */
     public boolean selectCompletionItemOnEnterForSoftKbd = true;
+
+    /**
+     * Show minimap for content
+     */
+    @Experimental
+    @InvalidateRequired
+    public boolean showMinimap = false;
+
+    /**
+     * Minimap config
+     */
+    @Experimental
+    @InvalidateRequired
+    @NonNull
+    public MinimapConfig minimapConfig = MinimapConfig.Companion.getDefaultConfig();
 
 }
