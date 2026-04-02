@@ -22,9 +22,9 @@
  *     additional information or have any questions
  ******************************************************************************/
 plugins {
-    id("com.android.library")
+    alias(libs.plugins.android.library)
+    // alias(libs.plugins.publish)
     id("org.jetbrains.kotlin.android")
-    //id("com.vanniktech.maven.publish.base")
 }
 
 android {

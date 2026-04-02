@@ -28,7 +28,6 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PersistableBundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -40,7 +39,6 @@ import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts.GetContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.savedstate.write
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -659,7 +657,16 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.write {
-            putString("text", binding.editor.text.toString())
+            // For production, you may need to store the text to external storage to avoid data loss
+            val text = binding.editor.text.toString().let {
+                val limit = 128 * 1024
+                if (it.length > limit) {
+                    it.substring(0, limit)
+                } else {
+                    it
+                }
+            }
+            putString("text", text)
             putFloat("font.size", binding.editor.textSizePx)
             putInt("position.left", binding.editor.cursor.left)
             putInt("position.right", binding.editor.cursor.right)

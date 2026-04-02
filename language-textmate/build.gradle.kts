@@ -25,8 +25,8 @@ import org.gradle.kotlin.dsl.invoke
  ******************************************************************************/
 
 plugins {
-    id("com.android.library")
-    //id("com.vanniktech.maven.publish.base")
+    alias(libs.plugins.android.library)
+    // alias(libs.plugins.publish)
     kotlin("android")
 }
 
@@ -59,7 +59,7 @@ android {
 dependencies {
     compileOnly(project(":editor"))
     compileOnly(project(":oniguruma-native"))
-    
+
     implementation(libs.gson)
     implementation(libs.jcodings)
     implementation(libs.joni)

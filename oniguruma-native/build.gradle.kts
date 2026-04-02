@@ -23,8 +23,8 @@
  ******************************************************************************/
 
 plugins {
-    id("com.android.library")
-    //id("com.vanniktech.maven.publish.base")
+    alias(libs.plugins.android.library)
+    // alias(libs.plugins.publish)
 }
 
 android {
@@ -51,7 +51,7 @@ android {
     externalNativeBuild {
         cmake {
             path = project.file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
+            version = "4.1.2"
         }
     }
 }
