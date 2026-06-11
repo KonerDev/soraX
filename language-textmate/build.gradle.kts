@@ -27,7 +27,6 @@ import org.gradle.kotlin.dsl.invoke
 plugins {
     alias(libs.plugins.android.library)
     // alias(libs.plugins.publish)
-    kotlin("android")
 }
 
 android {

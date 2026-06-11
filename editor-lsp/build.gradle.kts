@@ -24,7 +24,6 @@
 plugins {
     alias(libs.plugins.android.library)
     // alias(libs.plugins.publish)
-    id("org.jetbrains.kotlin.android")
 }
 
 android {
