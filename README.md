@@ -6,3 +6,13 @@ Changes from upstream may be applied directly as needed, rather than waiting for
 
 This repository is **not** intended for general use.
 We do **not** accept bug reports and only **rarely** accept pull requests, unless they are specifically related to **soraX** or **Xed-Editor**.
+
+
+## Syncing with upstream
+
+```bash
+git remote add upstream https://github.com/Rosemoe/sora-editor.git
+git fetch upstream
+git merge upstream/main
+
+```
